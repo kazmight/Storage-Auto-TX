@@ -68,7 +68,6 @@
 - **Insufficient Balance Error**: Ensure your wallets have sufficient OG tokens for transactions (minimum 0.0015 OG)
 - **Network Connection Issues**: Check your internet connection or try using proxies
 - **Transaction Failures**: The bot will automatically retry failed transactions
-- **Proxy Errors**: Verify your proxy format in `proxies.txt`
 
 ## 📄 License
 
