@@ -42,7 +42,7 @@
 
 ## ⚙️ Configuration
 
-1. ** in the project root directory with your private keys `.env`
+1. **in the project root directory with your private keys `.env`**
    ```
    # For a single wallet
    PRIVATE_KEY=your_private_key_here
