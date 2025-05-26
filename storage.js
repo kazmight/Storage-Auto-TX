@@ -456,7 +456,7 @@ async function main() {
     });
 
     rl.on('close', () => {
-      logger.bye('Process completed ~ Bye bang !');
+      logger.bye('Process selesai ~ Jangan Lupa Di follow github nya dan kasih stars ya bang.');
     });
 
   } catch (error) {
