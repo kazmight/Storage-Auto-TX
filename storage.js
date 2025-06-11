@@ -43,7 +43,12 @@ const logger = {
         console.log(`╚═════╝░░░░╚═╝░░░░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝░╚═════╝░╚══════╝  ╚═╝░░╚═╝░╚═════╝░░░░╚═╝░░░░╚════╝░  ░░░╚═╝░░░╚═╝░░╚═╝`);
         console.log(`\nby Kazmight`);
         console.log(`${colors.reset}\n`);
-    }
+    },
+    // Menambahkan pesan password
+    passwordPrompt: (msg) => console.log(`${colors.yellow}[🔒] ${msg}${colors.reset}`),
+    passwordCorrect: (msg) => console.log(`${colors.green}[✅] ${msg}${colors.reset}`),
+    passwordIncorrect: (msg) => console.log(`${colors.red}[✗] ${msg}${colors.reset}`),
+    passwordEnvMissing: (msg) => console.log(`${colors.red}[✗] ${msg}${colors.reset}`),
 };
 
 // --- Configuration ---
@@ -172,6 +177,13 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
+// Function to get input from user (using readline for async prompt)
+function getUserInput(query) {
+    return new Promise(resolve => {
+        rl.question(query + ' ', resolve);
+    });
+}
+
 // --- Network and Data Operations ---
 async function checkNetworkSync() {
     try {
@@ -252,13 +264,13 @@ async function prepareImageData(imageBuffer) {
 
 async function uploadToStorage(imageData, wallet, walletIndex) {
     const MAX_RETRIES = 3;
-    const TIMEOUT_SECONDS = 10; // 5 minutes
-    const FIXED_GAS_LIMIT = 500000n; // 
-    let attempt = 1; // Correctly initialized here
+    const TIMEOUT_SECONDS = 10;
+    const FIXED_GAS_LIMIT = 500000n; 
+    let attempt = 1; 
 
     logger.loading(`Checking wallet balance for ${wallet.address}...`);
     const balance = await provider.getBalance(wallet.address);
-    const minBalance = parseEther('0.0015'); // Minimum balance to ensure transaction goes through
+    const minBalance = parseEther('0.0015'); 
     if (BigInt(balance) < BigInt(minBalance)) {
         throw new Error(`Insufficient balance: ${formatEther(balance)} OG. Minimum required: ${formatEther(minBalance)} OG.`);
     }
@@ -299,27 +311,18 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
 
             const value = parseEther('0.000839233398436224'); // Value to send with the transaction
 
-            // --- Fixed Gas Price & Gas Limit (mimicking TradeGPT) ---
-            // No explicit gasPrice or EIP-1559 fields are set here,
-            // ethers.js will use the provider's default gas price.
             logger.info(`Using fixed gas limit: ${FIXED_GAS_LIMIT}`);
             logger.info('Relying on RPC provider for gas price (no dynamic fetching).');
 
-            // --- Balance Check ---
-            // For true mimicry, we assume the wallet has sufficient funds to cover
-            // the fixed gas limit at the network's default gas price.
-            // Removing the provider.getGasPrice() call from here.
-            const requiredBalance = FIXED_GAS_LIMIT + BigInt(value); // Only checks for value + minimum for gasLimit itself
+            const requiredBalance = FIXED_GAS_LIMIT + BigInt(value); 
 
             if (BigInt(balance) < requiredBalance) {
                 throw new Error(`Insufficient balance: ${formatEther(balance)} OG. Required (min): ${formatEther(requiredBalance)} OG.`);
             }
 
             logger.loading('Sending transaction...');
-            // Get the current nonce for the wallet
             const nonce = await provider.getTransactionCount(wallet.address, 'latest');
             
-            // Build the transaction parameters with fixed gas limit
             const txParams = {
                 to: CONTRACT_ADDRESS,
                 data,
@@ -327,8 +330,6 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
                 nonce,
                 chainId: CHAIN_ID,
                 gasLimit: FIXED_GAS_LIMIT,
-                // No gasPrice, maxFeePerGas, or maxPriorityFeePerGas explicitly set here
-                // This makes it behave like the TradeGPT script's swap transaction
             };
 
             const tx = await wallet.sendTransaction(txParams);
@@ -339,7 +340,6 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
             logger.loading(`Waiting for confirmation (${TIMEOUT_SECONDS}s)...`);
             let receipt;
             try {
-                // Wait for the transaction to be confirmed, with a timeout
                 receipt = await Promise.race([
                     tx.wait(),
                     new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${TIMEOUT_SECONDS} seconds`)), TIMEOUT_SECONDS * 1000))
@@ -347,7 +347,6 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
             } catch (error) {
                 if (error.message.includes('Timeout')) {
                     logger.warn(`Transaction timeout after ${TIMEOUT_SECONDS}s.`);
-                    // Attempt to get the receipt one more time in case it confirmed shortly after timeout
                     receipt = await provider.getTransactionReceipt(tx.hash);
                     if (receipt && receipt.status === 1) {
                         logger.success(`Transaction confirmed late in block ${receipt.blockNumber}`);
@@ -382,19 +381,39 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
 
 // --- Main Execution Flow ---
 async function main() {
+    logger.banner();
+
+    // --- FITUR PASSWORD DITAMBAHKAN DI SINI ---
+    const correctPassword = process.env.BOT_PASSWORD;
+    if (!correctPassword) {
+        logger.passwordEnvMissing('Variabel lingkungan BOT_PASSWORD tidak ditemukan. Harap setel sebelum menjalankan skrip.');
+        rl.close();
+        process.exit(1);
+    }
+
+    logger.passwordPrompt('Enter password:');
+    const enteredPassword = await getUserInput(''); // Menggunakan getUserInput agar input terlihat
+
+    if (enteredPassword !== correctPassword) {
+        logger.passwordIncorrect('Password salah! Keluar...');
+        rl.close();
+        process.exit(1);
+    }
+    logger.passwordCorrect('Password benar! Memulai bot...');
+    console.log('\n'); // Tambahkan baris kosong untuk jarak
+    // --- AKHIR FITUR PASSWORD ---
+
     try {
-        logger.banner();
         loadPrivateKeys();
 
         logger.loading('Checking network status...');
         const network = await provider.getNetwork();
-        // Ensure chainId is a BigInt for comparison if using ethers v6
-        const networkChainId = network.chainId; 
+        const networkChainId = network.chainId;
 
         if (BigInt(networkChainId) !== BigInt(CHAIN_ID)) {
             throw new Error(`Invalid chainId: expected ${CHAIN_ID}, got ${networkChainId}`);
         }
-        logger.success(`Connected to network: chainId ${networkChainId} (${network.name})`);
+        logger.success(`Connected to network: chainId ${networkChainId} (0G Galileo)`);
 
         const isNetworkSynced = await checkNetworkSync();
         if (!isNetworkSynced) {
