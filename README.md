@@ -3,6 +3,9 @@
 
 **0G Storage Scan Bot** is an automated tool designed to interact with the 0G Storage blockchain network. It automates the process of uploading random images to the 0G Storage network using multiple wallet accounts and manages transactions on the blockchain.
 
+## Don't forget join telegram channel Dasar Pemulung for Password.
+## Links telegram: https://t.me/dasarpemulung
+
 ## ✨ Features
 
 - ✅ Support for multiple wallet private keys
